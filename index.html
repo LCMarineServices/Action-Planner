@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Action Planner">
+<meta name="theme-color" content="#f4f1ea">
+<title>Action Planner</title>
+<style>
+:root{--ink:#161616;--paper:#f4f1ea;--field:#dce5fb;--bar:#292929;--line:#8a8a8a}
+*{box-sizing:border-box} body{margin:0;background:#d7d7d7;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+.app{max-width:900px;margin:auto;background:var(--paper);min-height:100vh;padding:14px 18px 26px}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(244,241,234,.97);display:flex;gap:8px;align-items:center;padding:8px 0 12px;flex-wrap:wrap}
+button,input[type=date],select{font:inherit;border:1px solid #777;border-radius:8px;background:white;padding:9px 11px}
+button{font-weight:700}.grow{flex:1}.dateLabel{font-weight:700;text-align:right}
+h1{text-align:center;margin:4px 0 14px;font-size:clamp(28px,5vw,46px);font-family:Impact,"Arial Narrow",sans-serif;letter-spacing:.5px}
+.grid{display:grid;grid-template-columns:1fr 1.05fr;gap:26px}
+.section{margin-bottom:14px}.title{background:var(--bar);color:white;text-align:center;padding:4px;font-family:"Arial Narrow",Arial,sans-serif;font-stretch:condensed;font-size:20px;letter-spacing:.5px}
+.lines{padding:5px 4px}.line{display:flex;align-items:center;min-height:36px;border-bottom:1px solid var(--line)}
+.line input[type=text]{width:100%;height:32px;border:0;background:var(--field);padding:4px 8px;font-size:16px;border-radius:0;outline:none}
+.line input[type=checkbox]{width:20px;height:20px;margin:0 6px 0 0}
+textarea{width:100%;resize:none;border:0;background:repeating-linear-gradient(to bottom,var(--field) 0,var(--field) 31px,#999 32px,#999 33px);line-height:33px;font-size:16px;padding:0 8px;outline:none}
+.rhythm .line{gap:7px}.time{width:66px;text-align:right;font-size:14px;white-space:nowrap}.rhythm input{flex:1}
+.rigor{display:flex;justify-content:space-between;padding:10px 8px}.rigor label{text-align:center;font-weight:bold}.rigor input{display:block;width:22px;height:22px;margin:5px auto}
+.footer{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:15px}.small{font-size:12px;color:#555;text-align:center;margin-top:12px}
+.modal{display:none;position:fixed;inset:0;background:#0008;z-index:20;padding:20px;overflow:auto}.card{max-width:560px;margin:5vh auto;background:white;border-radius:12px;padding:18px}.card h2{margin-top:0}.card label{display:block;margin:10px 0}.card input[type=text],.card input[type=date],.card select{width:100%}.row{display:flex;gap:8px}.row>*{flex:1}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.app{padding:10px}.dateLabel{width:100%;text-align:center}.toolbar{justify-content:center}.rhythm .line{min-height:40px}}
+</style>
+</head>
+<body><main class="app">
+<div class="toolbar">
+<button id="prev">◀</button><input id="date" type="date"><button id="next">▶</button>
+<span class="grow"></span><span class="dateLabel" id="pretty"></span>
+</div>
+<h1>“ACTION CURES FEAR!”</h1>
+<div class="grid">
+<div>
+<section class="section"><div class="title">MORNING GRATITUDE</div><div class="lines" id="gratitude"></div></section>
+<section class="section"><div class="title">GOALS — SET UP TO 3</div><div class="lines" id="goals"></div></section>
+<section class="section"><div class="title">ROUTINES — NON NEGOTIABLE</div><div class="lines"><textarea id="routines" rows="5" data-field="routines"></textarea></div></section>
+<section class="section"><div class="title">RESISTANCE</div><div class="lines"><textarea id="resistance" rows="5" data-field="resistance"></textarea></div></section>
+<section class="section"><div class="title">RECOVERY AND RESET</div><div class="lines" id="recovery"></div></section>
+<section class="section"><div class="title">RIGOR</div><div class="rigor" id="rigor"></div></section>
+</div>
+<div>
+<section class="section rhythm"><div class="title">RHYTHM</div><div class="lines" id="rhythm"></div></section>
+</div>
+</div>
+<div class="footer">
+<button id="repeatBtn">↻ Recurring Entry</button>
+<button id="backupBtn">Export Backup</button>
+<button id="restoreBtn">Import Backup</button>
+<input type="file" id="restoreFile" accept=".json,application/json" hidden>
+</div>
+<div class="small">Entries save automatically on this device. Export a backup regularly.</div>
+</main>
+
+<div class="modal" id="repeatModal"><div class="card">
+<h2>Create recurring entry</h2>
+<label>Section<select id="repSection">
+<option value="gratitude">Morning Gratitude</option><option value="goals">Goals</option>
+<option value="routines">Routines</option><option value="resistance">Resistance</option>
+<option value="recovery">Recovery and Reset</option><option value="rhythm">Rhythm</option>
+</select></label>
+<label id="slotWrap">Line / time<select id="repSlot"></select></label>
+<label>Text<input id="repText" type="text"></label>
+<div class="row"><label>Start<input id="repStart" type="date"></label><label>End<input id="repEnd" type="date"></label></div>
+<label>Repeat<select id="repFreq"><option value="daily">Every day</option><option value="weekdays">Weekdays</option><option value="weekly">Same weekday weekly</option></select></label>
+<div class="row"><button id="repCancel">Cancel</button><button id="repSave">Add to future dates</button></div>
+</div></div>
+
+<script>
+const K='actionPlanner.v1.', pad=n=>String(n).padStart(2,'0');
+function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function parseISO(s){let [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)}
+const today=()=>iso(new Date());
+const dateEl=document.querySelector('#date'); dateEl.value=today();
+const times=[]; for(let h=5;h<=22;h++) times.push((h>12?h-12:h)+':00'+(h>=12?'pm':'am'));
+function mkLines(id,n,checks=true){let p=document.querySelector('#'+id);for(let i=0;i<n;i++){let d=document.createElement('div');d.className='line';d.innerHTML=(checks?'<input type="checkbox" data-field="'+id+'Check'+i+'">':'')+'<input type="text" data-field="'+id+i+'">';p.appendChild(d)}}
+mkLines('gratitude',3);mkLines('goals',3);mkLines('recovery',3);
+let rp=document.querySelector('#rhythm');times.forEach((t,i)=>{let d=document.createElement('div');d.className='line';d.innerHTML='<span class="time">'+t+'</span><input type="text" data-field="rhythm'+i+'">';rp.appendChild(d)});
+let rig=document.querySelector('#rigor');for(let i=1;i<=4;i++)rig.insertAdjacentHTML('beforeend','<label>'+i+'<input type="radio" name="rigor" value="'+i+'" data-field="rigor"></label>');
+function fields(){return [...document.querySelectorAll('[data-field]')]}
+function key(){return K+dateEl.value}
+function load(){
+ document.querySelector('#pretty').textContent=parseISO(dateEl.value).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+ let x=JSON.parse(localStorage.getItem(key())||'{}');
+ fields().forEach(el=>{if(el.type==='checkbox')el.checked=!!x[el.dataset.field];else if(el.type==='radio')el.checked=x.rigor===el.value;else el.value=x[el.dataset.field]||''});
+}
+function save(){
+ let x={};fields().forEach(el=>{if(el.type==='checkbox')x[el.dataset.field]=el.checked;else if(el.type==='radio'){if(el.checked)x.rigor=el.value}else x[el.dataset.field]=el.value});
+ localStorage.setItem(key(),JSON.stringify(x));
+}
+document.addEventListener('input',e=>{if(e.target.matches('[data-field]'))save()});document.addEventListener('change',e=>{if(e.target.matches('[data-field]'))save()});
+dateEl.onchange=load; document.querySelector('#prev').onclick=()=>shift(-1);document.querySelector('#next').onclick=()=>shift(1);
+function shift(n){save();let d=parseISO(dateEl.value);d.setDate(d.getDate()+n);dateEl.value=iso(d);load()}
+function backup(){
+ save();let data={version:1,created:new Date().toISOString(),records:{}};for(let i=0;i<localStorage.length;i++){let k=localStorage.key(i);if(k.startsWith(K))data.records[k]=localStorage.getItem(k)}
+ let b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='Action-Planner-Backup-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
+}
+document.querySelector('#backupBtn').onclick=backup;document.querySelector('#restoreBtn').onclick=()=>document.querySelector('#restoreFile').click();
+document.querySelector('#restoreFile').onchange=async e=>{try{let j=JSON.parse(await e.target.files[0].text());Object.entries(j.records||{}).forEach(([k,v])=>localStorage.setItem(k,v));load();alert('Backup restored.')}catch{alert('That backup file could not be read.')}};
+const modal=document.querySelector('#repeatModal'),sec=document.querySelector('#repSection'),slot=document.querySelector('#repSlot');
+function slots(){slot.innerHTML='';let s=sec.value,arr=s==='rhythm'?times:(s==='gratitude'||s==='goals'||s==='recovery'?['Line 1','Line 2','Line 3']:['Entry']);arr.forEach((x,i)=>slot.add(new Option(x,i)))}
+sec.onchange=slots;slots();
+document.querySelector('#repeatBtn').onclick=()=>{document.querySelector('#repStart').value=dateEl.value;let d=parseISO(dateEl.value);d.setMonth(d.getMonth()+1);document.querySelector('#repEnd').value=iso(d);modal.style.display='block'}
+document.querySelector('#repCancel').onclick=()=>modal.style.display='none';
+document.querySelector('#repSave').onclick=()=>{
+ let text=document.querySelector('#repText').value.trim(),start=parseISO(document.querySelector('#repStart').value),end=parseISO(document.querySelector('#repEnd').value),freq=document.querySelector('#repFreq').value,s=sec.value,idx=+slot.value;if(!text||isNaN(start)||isNaN(end)||end<start)return alert('Enter text and a valid date range.');
+ let startDay=start.getDay(),count=0;
+ for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){let ok=freq==='daily'||(freq==='weekdays'&&d.getDay()>0&&d.getDay()<6)||(freq==='weekly'&&d.getDay()===startDay);if(!ok)continue;
+   let k=K+iso(d),x=JSON.parse(localStorage.getItem(k)||'{}'),f=s==='rhythm'?'rhythm'+idx:(s==='routines'||s==='resistance'?s:s+idx); if(!x[f]){x[f]=text;localStorage.setItem(k,JSON.stringify(x));count++}
+ }
+ modal.style.display='none';document.querySelector('#repText').value='';load();alert('Added to '+count+' future planner date'+(count===1?'':'s')+'. Existing entries were not overwritten.');
+};
+load();
+</script>
+</body></html>
