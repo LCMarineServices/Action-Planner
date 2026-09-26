@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Action Planner">
+<meta name="theme-color" content="#f4f1ea"><title>Action Planner</title>
+<style>
+:root{--ink:#161616;--paper:#f4f1ea;--field:#dce5fb;--bar:#292929;--line:#8a8a8a}
+*{box-sizing:border-box}body{margin:0;background:#d7d7d7;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+.app{max-width:900px;margin:auto;background:var(--paper);min-height:100vh;padding:14px 18px 26px}
+.toolbar{position:sticky;top:0;z-index:5;background:#f4f1eafa;display:flex;gap:8px;align-items:center;padding:8px 0 12px;flex-wrap:wrap}
+button,input[type=date],select,input[type=text]{font:inherit;border:1px solid #777;border-radius:8px;background:white;padding:9px 11px}
+button{font-weight:700}.grow{flex:1}.dateLabel{font-weight:700;text-align:right}
+h1{text-align:center;margin:4px 0 14px;font-size:clamp(28px,5vw,46px);font-family:Impact,"Arial Narrow",sans-serif}
+.grid{display:grid;grid-template-columns:1fr 1.05fr;gap:26px}.section{margin-bottom:14px}
+.title{background:var(--bar);color:white;text-align:center;padding:4px;font-family:"Arial Narrow",Arial,sans-serif;font-size:20px;letter-spacing:.5px}
+.lines{padding:5px 4px}.line{display:flex;align-items:center;min-height:36px;border-bottom:1px solid var(--line)}
+.line input[type=text]{width:100%;height:32px;border:0;background:var(--field);padding:4px 8px;font-size:16px;border-radius:0;outline:none}
+.line input[type=checkbox]{width:20px;height:20px;margin:0 6px 0 0}.rhythm .line{gap:7px}.time{width:66px;text-align:right;font-size:14px}
+.rigor{display:flex;justify-content:space-between;padding:10px 8px}.rigor label{text-align:center;font-weight:bold}.rigor input{display:block;width:22px;height:22px;margin:5px auto}
+.footer{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:15px}.small{font-size:12px;color:#555;text-align:center;margin-top:12px}
+.modal{display:none;position:fixed;inset:0;background:#0008;z-index:20;padding:20px;overflow:auto}.card{max-width:620px;margin:4vh auto;background:white;border-radius:12px;padding:18px}
+.card h2{margin-top:0}.card label{display:block;margin:10px 0}.card input[type=text],.card input[type=date],.card select{width:100%}.row{display:flex;gap:8px}.row>*{flex:1}
+.seriesItem{border:1px solid #bbb;border-radius:10px;padding:10px;margin:10px 0}.seriesItem b{display:block;margin-bottom:4px}.muted{color:#666;font-size:13px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.app{padding:10px}.dateLabel{width:100%;text-align:center}.toolbar{justify-content:center}.rhythm .line{min-height:40px}}
+</style></head><body><main class="app">
+<div class="toolbar"><button id="prev">◀</button><input id="date" type="date"><button id="next">▶</button><span class="grow"></span><span class="dateLabel" id="pretty"></span></div>
+<h1>“ACTION CURES FEAR!”</h1>
+<div class="grid"><div>
+<section class="section"><div class="title">MORNING GRATITUDE</div><div class="lines" id="gratitude"></div></section>
+<section class="section"><div class="title">GOALS — SET UP TO 3</div><div class="lines" id="goals"></div></section>
+<section class="section"><div class="title">ROUTINES — NON NEGOTIABLE</div><div class="lines" id="routines"></div></section>
+<section class="section"><div class="title">RESISTANCE</div><div class="lines" id="resistance"></div></section>
+<section class="section"><div class="title">RECOVERY AND RESET</div><div class="lines" id="recovery"></div></section>
+<section class="section"><div class="title">RIGOR</div><div class="rigor" id="rigor"></div></section>
+</div><div><section class="section rhythm"><div class="title">RHYTHM</div><div class="lines" id="rhythm"></div></section></div></div>
+<div class="footer"><button id="repeatBtn">↻ Recurring Entry</button><button id="manageBtn">Manage Recurring</button><button id="backupBtn">Export Backup</button><button id="restoreBtn">Import Backup</button><input type="file" id="restoreFile" accept=".json,application/json" hidden></div>
+<div class="small">Entries save automatically on this device. Export a backup regularly.</div>
+<div class="small" style="margin-top:8px;font-weight:600">Copyright © 2023 Resilience Leaders LLC</div>
+</main>
+
+<div class="modal" id="repeatModal"><div class="card"><h2 id="repTitle">Create recurring entry</h2>
+<input type="hidden" id="repId">
+<label>Section<select id="repSection"><option value="gratitude">Morning Gratitude</option><option value="goals">Goals</option><option value="routines">Routines — Non Negotiable</option><option value="resistance">Resistance</option><option value="recovery">Recovery and Reset</option><option value="rhythm">Rhythm</option></select></label>
+<label>Line / time<select id="repSlot"></select></label><label>Text<input id="repText" type="text"></label>
+<div class="row"><label>Start<input id="repStart" type="date"></label><label>End<input id="repEnd" type="date"></label></div>
+<label>Repeat<select id="repFreq"><option value="daily">Every day</option><option value="weekdays">Weekdays</option><option value="weekly">Same weekday weekly</option></select></label>
+<div class="row"><button id="repCancel">Cancel</button><button id="repSave">Save recurring entry</button></div></div></div>
+
+<div class="modal" id="manageModal"><div class="card"><h2>Manage recurring entries</h2><div id="seriesList"></div><div class="row"><button id="manageClose">Close</button></div></div></div>
+
+<div class="modal" id="actionModal"><div class="card"><h2 id="actionTitle">Recurring entry</h2><div class="muted" id="actionInfo"></div>
+<label>Occurrence date<input id="occDate" type="date"></label>
+<div class="row"><button id="editOne">Edit this occurrence</button><button id="deleteOne">Delete this occurrence</button></div>
+<div class="row"><button id="editFuture">Edit this & future</button><button id="deleteFuture">Delete this & future</button></div>
+<div class="row"><button id="editAll">Edit entire series</button><button id="deleteAll">Delete entire series</button></div>
+<button id="actionClose" style="width:100%;margin-top:8px">Cancel</button></div></div>
+
+<script>
+const K='actionPlanner.v1.', SK='actionPlanner.series.v2', pad=n=>String(n).padStart(2,'0');
+function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function parseISO(s){let [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)}
+const today=()=>iso(new Date()), dateEl=document.querySelector('#date');dateEl.value=today();
+const times=[];for(let h=5;h<=22;h++)times.push((h>12?h-12:h)+':00'+(h>=12?'pm':'am'));
+function mkLines(id,n,checks=true){let p=document.querySelector('#'+id);for(let i=0;i<n;i++){let d=document.createElement('div');d.className='line';d.innerHTML=(checks?'<input type="checkbox" data-field="'+id+'Check'+i+'">':'')+'<input type="text" data-field="'+id+i+'">';p.appendChild(d)}}
+mkLines('gratitude',3);mkLines('goals',3);mkLines('routines',5,false);mkLines('resistance',5,false);mkLines('recovery',3);
+let rp=document.querySelector('#rhythm');times.forEach((t,i)=>{let d=document.createElement('div');d.className='line';d.innerHTML='<span class="time">'+t+'</span><input type="text" data-field="rhythm'+i+'">';rp.appendChild(d)});
+let rig=document.querySelector('#rigor');for(let i=1;i<=4;i++)rig.insertAdjacentHTML('beforeend','<label>'+i+'<input type="radio" name="rigor" value="'+i+'" data-field="rigor"></label>');
+const fields=()=>[...document.querySelectorAll('[data-field]')], key=d=>K+(d||dateEl.value);
+function record(d){try{return JSON.parse(localStorage.getItem(key(d))||'{}')}catch{return {}}}
+function putRecord(d,x){localStorage.setItem(key(d),JSON.stringify(x))}
+function migrate(x){
+ ['routines','resistance'].forEach(s=>{if(typeof x[s]==='string'&&x[s].trim()&&!x[s+'0']){let a=x[s].split(/\n+/).filter(Boolean);for(let i=0;i<5&&i<a.length;i++)x[s+i]=a[i];delete x[s]}})
+ return x
+}
+function load(){document.querySelector('#pretty').textContent=parseISO(dateEl.value).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});let x=migrate(record(dateEl.value));putRecord(dateEl.value,x);fields().forEach(el=>{if(el.type==='checkbox')el.checked=!!x[el.dataset.field];else if(el.type==='radio')el.checked=x.rigor===el.value;else el.value=x[el.dataset.field]||''})}
+function save(){let x=migrate(record(dateEl.value));fields().forEach(el=>{if(el.type==='checkbox')x[el.dataset.field]=el.checked;else if(el.type==='radio'){if(el.checked)x.rigor=el.value}else x[el.dataset.field]=el.value});putRecord(dateEl.value,x)}
+document.addEventListener('input',e=>{if(e.target.matches('[data-field]'))save()});document.addEventListener('change',e=>{if(e.target.matches('[data-field]'))save()});
+dateEl.onchange=load;document.querySelector('#prev').onclick=()=>shift(-1);document.querySelector('#next').onclick=()=>shift(1);
+function shift(n){save();let d=parseISO(dateEl.value);d.setDate(d.getDate()+n);dateEl.value=iso(d);load()}
+
+function getSeries(){try{return JSON.parse(localStorage.getItem(SK)||'[]')}catch{return []}}
+function setSeries(a){localStorage.setItem(SK,JSON.stringify(a))}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function fieldFor(s,idx){return s==='rhythm'?'rhythm'+idx:s+idx}
+function matches(series,date){let d=parseISO(date),st=parseISO(series.start),en=parseISO(series.end);if(d<st||d>en)return false;if((series.ex||[]).includes(date))return false;if(series.freq==='daily')return true;if(series.freq==='weekdays')return d.getDay()>0&&d.getDay()<6;return d.getDay()===st.getDay()}
+function datesFor(series,from){let out=[],st=parseISO(from||series.start),en=parseISO(series.end);for(let d=new Date(st);d<=en;d.setDate(d.getDate()+1)){let ds=iso(d);if(matches(series,ds))out.push(ds)}return out}
+function writeSeries(series,from,oldText,oldField){
+ datesFor(series,from).forEach(ds=>{let x=migrate(record(ds)),f=fieldFor(series.section,series.slot),of=oldField||f;
+   if(!x[f] || x[f]===oldText || (of!==f && x[of]===oldText)){if(of!==f&&x[of]===oldText)delete x[of];x[f]=series.text;putRecord(ds,x)}
+ })
+}
+function removeSeriesValues(series,from){datesFor(series,from).forEach(ds=>{let x=migrate(record(ds)),f=fieldFor(series.section,series.slot);if(x[f]===series.text){delete x[f];putRecord(ds,x)}})}
+const rep=document.querySelector('#repeatModal'),sec=document.querySelector('#repSection'),slot=document.querySelector('#repSlot');
+function slots(){slot.innerHTML='';let s=sec.value,arr=s==='rhythm'?times:(s==='routines'||s==='resistance'?['Line 1','Line 2','Line 3','Line 4','Line 5']:['Line 1','Line 2','Line 3']);arr.forEach((x,i)=>slot.add(new Option(x,i)))}
+sec.onchange=slots;slots();
+function openRep(series=null){document.querySelector('#repId').value=series?.id||'';document.querySelector('#repTitle').textContent=series?'Edit recurring entry':'Create recurring entry';sec.value=series?.section||'gratitude';slots();slot.value=series?.slot??0;document.querySelector('#repText').value=series?.text||'';document.querySelector('#repStart').value=series?.start||dateEl.value;let d=parseISO(dateEl.value);d.setMonth(d.getMonth()+1);document.querySelector('#repEnd').value=series?.end||iso(d);document.querySelector('#repFreq').value=series?.freq||'daily';rep.style.display='block'}
+document.querySelector('#repeatBtn').onclick=()=>openRep();document.querySelector('#repCancel').onclick=()=>rep.style.display='none';
+document.querySelector('#repSave').onclick=()=>{let id=document.querySelector('#repId').value,text=document.querySelector('#repText').value.trim(),start=document.querySelector('#repStart').value,end=document.querySelector('#repEnd').value,freq=document.querySelector('#repFreq').value;if(!text||!start||!end||end<start)return alert('Enter text and a valid date range.');
+ let arr=getSeries(),old=id?arr.find(x=>x.id===id):null,s={id:id||uid(),section:sec.value,slot:+slot.value,text,start,end,freq,ex:old?.ex||[]};
+ if(old){removeSeriesValues(old);arr=arr.filter(x=>x.id!==id)}arr.push(s);setSeries(arr);writeSeries(s,null,old?.text,old?fieldFor(old.section,old.slot):null);rep.style.display='none';load();alert(old?'Recurring series updated.':'Recurring series created.')}
+const manage=document.querySelector('#manageModal'),action=document.querySelector('#actionModal');let activeId=null;
+function label(s){let name={gratitude:'Morning Gratitude',goals:'Goals',routines:'Routines',resistance:'Resistance',recovery:'Recovery',rhythm:'Rhythm'}[s.section];let pos=s.section==='rhythm'?times[s.slot]:'Line '+(s.slot+1);return name+' — '+pos}
+function renderSeries(){let a=getSeries(),box=document.querySelector('#seriesList');box.innerHTML=a.length?'':'<p>No managed recurring entries yet.</p>';a.forEach(s=>{let d=document.createElement('div');d.className='seriesItem';d.innerHTML='<b>'+esc(s.text)+'</b><div>'+esc(label(s))+'</div><div class="muted">'+s.start+' through '+s.end+' • '+s.freq+'</div><button data-manage="'+s.id+'" style="margin-top:8px">Manage</button>';box.appendChild(d)})}
+function esc(x){return String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+document.querySelector('#manageBtn').onclick=()=>{renderSeries();manage.style.display='block'};document.querySelector('#manageClose').onclick=()=>manage.style.display='none';
+document.querySelector('#seriesList').onclick=e=>{let id=e.target.dataset.manage;if(!id)return;activeId=id;let s=getSeries().find(x=>x.id===id);document.querySelector('#actionTitle').textContent=s.text;document.querySelector('#actionInfo').textContent=label(s)+' • '+s.freq;document.querySelector('#occDate').value=(dateEl.value>=s.start&&dateEl.value<=s.end)?dateEl.value:s.start;action.style.display='block'};
+document.querySelector('#actionClose').onclick=()=>action.style.display='none';
+function active(){return getSeries().find(x=>x.id===activeId)}
+document.querySelector('#editAll').onclick=()=>{let s=active();action.style.display='none';manage.style.display='none';openRep(s)}
+document.querySelector('#deleteAll').onclick=()=>{let s=active();if(!confirm('Delete this entire recurring series?'))return;removeSeriesValues(s);setSeries(getSeries().filter(x=>x.id!==s.id));action.style.display='none';renderSeries();load()}
+document.querySelector('#editOne').onclick=()=>{let s=active(),ds=document.querySelector('#occDate').value;if(!matches(s,ds))return alert('That date is not an occurrence in this series.');let v=prompt('Edit this occurrence:',s.text);if(v===null)return;let x=migrate(record(ds)),f=fieldFor(s.section,s.slot);x[f]=v;putRecord(ds,x);s.ex=[...(s.ex||[]),ds];setSeries(getSeries().map(q=>q.id===s.id?s:q));action.style.display='none';load()}
+document.querySelector('#deleteOne').onclick=()=>{let s=active(),ds=document.querySelector('#occDate').value;if(!matches(s,ds))return alert('That date is not an occurrence in this series.');let x=migrate(record(ds)),f=fieldFor(s.section,s.slot);if(x[f]===s.text)delete x[f];putRecord(ds,x);s.ex=[...(s.ex||[]),ds];setSeries(getSeries().map(q=>q.id===s.id?s:q));action.style.display='none';load()}
+document.querySelector('#editFuture').onclick=()=>{let s=active(),ds=document.querySelector('#occDate').value;if(ds<s.start||ds>s.end)return alert('Choose a date inside the series.');let oldEnd=s.end,old={...s};let prev=parseISO(ds);prev.setDate(prev.getDate()-1);s.end=iso(prev);let newS={...old,id:uid(),start:ds,ex:[]};setSeries(getSeries().filter(q=>q.id!==s.id).concat(s,newS));action.style.display='none';manage.style.display='none';openRep(newS)}
+document.querySelector('#deleteFuture').onclick=()=>{let s=active(),ds=document.querySelector('#occDate').value;if(ds<s.start||ds>s.end)return alert('Choose a date inside the series.');if(!confirm('Delete this occurrence and all future occurrences?'))return;let old={...s};removeSeriesValues(old,ds);let prev=parseISO(ds);prev.setDate(prev.getDate()-1);s.end=iso(prev);setSeries(getSeries().map(q=>q.id===s.id?s:q));action.style.display='none';renderSeries();load()}
+
+function backup(){save();let data={version:2,created:new Date().toISOString(),records:{},series:getSeries()};for(let i=0;i<localStorage.length;i++){let k=localStorage.key(i);if(k.startsWith(K))data.records[k]=localStorage.getItem(k)}let b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='Action-Planner-Backup-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+document.querySelector('#backupBtn').onclick=backup;document.querySelector('#restoreBtn').onclick=()=>document.querySelector('#restoreFile').click();
+document.querySelector('#restoreFile').onchange=async e=>{try{let j=JSON.parse(await e.target.files[0].text());Object.entries(j.records||{}).forEach(([k,v])=>localStorage.setItem(k,v));if(j.series)setSeries(j.series);load();alert('Backup restored.')}catch{alert('That backup file could not be read.')}};
+load();
+</script></body></html>
